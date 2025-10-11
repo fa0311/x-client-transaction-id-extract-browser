@@ -1,9 +1,9 @@
 const fs = require("fs").promises;
 const puppeteer = require("puppeteer");
-const { createSession, decodeTransactionId } = require("./src/main");
+const { createSession, createSessionOverride } = require("./src/main");
+const { decodeTransactionId } = require("x-client-transaction-id-generater");
 
-(async () => {
-  const browser = await puppeteer.launch({ headless: false });
+const get = async (browser) => {
   const cookies = JSON.parse(await fs.readFile("cookies.json", "utf-8"));
   await browser.setCookie(
     ...cookies.map((cookie) => ({
@@ -12,10 +12,15 @@ const { createSession, decodeTransactionId } = require("./src/main");
       domain: cookie.domain,
     }))
   );
-  const session = await createSession(browser);
-  const id = await session.res("GET", "/i/api/graphql/_8aYOgEDz35BrBcBal1-_w/TweetDetail");
-  console.log(id);
-  console.log(decodeTransactionId(id));
+};
+
+(async () => {
+  const browser = await puppeteer.launch({ headless: false });
+  const session = await createSession(browser, undefined);
+  const keyConverter = await session.initKeyConverter();
+  const id = await keyConverter();
+  console.log(id.split("obfiowerehiring")[1]);
+  await fs.writeFile("index.html", session.page);
 
   await session.close();
 })();

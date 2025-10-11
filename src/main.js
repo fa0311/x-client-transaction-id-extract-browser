@@ -46,12 +46,21 @@ const hookEvaluateSetup = async () => {
 };
 
 /**
- * @param {string} method
- * @param {string} url
+ * @typedef {Object} ResponseModel
+ * @property { () => Promise<void>} close
+ * @property { () => Promise<(method: string, url: string) => Promise<any>>} initIdConverter
+ * @property { () => Promise<() => Promise<string>>} initKeyConverter
+ * @property {string} verification
+ * @property {string} page
+ */
+
+/**
  * @returns {Promise<string>}
  */
-const getKeyEvaluate = async (method, url) => {
-  await globalThis.elonmusk_114514(url, method);
+const getKeyEvaluate = async () => {
+  while (globalThis.elonmusk_1145141919810.length === 0) {
+    await new Promise((res) => setTimeout(res, 100));
+  }
   const last = globalThis.elonmusk_1145141919810[globalThis.elonmusk_1145141919810.length - 1];
   const toStr = (b) => new TextDecoder().decode(b instanceof ArrayBuffer ? b : b.buffer);
   return toStr(last.data);
@@ -60,21 +69,27 @@ const getKeyEvaluate = async (method, url) => {
 /**
  * @param {import("puppeteer").Browser} browser
  * @param {import("puppeteer").Page | undefined} page
- * @returns {Promise<{close: () => Promise<void>, res: (method: string, url: string) => Promise<any>, key: (method: string, url: string) => Promise<string>, verification: string}>}
+ * @returns {Promise<ResponseModel>}
  */
 const createSession = async (browser, page) => {
   const newPage = page ?? (await browser.newPage());
   const indexPage = await newPage.goto("https://x.com/home");
-  const indexRoot = parse(await indexPage.text());
+  const input = await indexPage.text();
+  const indexRoot = parse(input);
   const verification = indexRoot.querySelector("[name^=tw]")?.getAttribute("content");
   const indexSvg = indexRoot.querySelectorAll("svg").map((e) => e.outerHTML);
-  await newPage.evaluate(evaluateSetup, indexSvg.join(""), undefined);
-  await newPage.evaluate(hookEvaluateSetup);
   return {
     close: async () => await browser.close(),
-    res: async (method, url) => await newPage.evaluate(evaluate, method, url),
-    key: async (method, url) => await newPage.evaluate(getKeyEvaluate, method, url),
+    initIdConverter: async () => {
+      await newPage.evaluate(evaluateSetup, indexSvg.join(""), undefined);
+      return async (method, url) => await newPage.evaluate(evaluate, method, url);
+    },
+    initKeyConverter: async () => {
+      await newPage.evaluate(hookEvaluateSetup);
+      return async () => await newPage.evaluate(getKeyEvaluate);
+    },
     verification: verification,
+    page: input,
   };
 };
 
@@ -82,7 +97,7 @@ const createSession = async (browser, page) => {
  * @param {import("puppeteer").Browser} browser
  * @param {import("puppeteer").Page | undefined} page
  * @param {string} input
- * @returns {Promise<{close: () => Promise<void>, res: (method: string, url: string) => Promise<any>, key: (method: string, url: string) => Promise<string>}>}
+ * @returns {Promise<ResponseModel>}
  */
 const createSessionOverride = async (browser, page, input) => {
   const newPage = page ?? (await browser.newPage());
@@ -96,8 +111,16 @@ const createSessionOverride = async (browser, page, input) => {
 
   return {
     close: async () => await browser.close(),
-    res: async (method, url) => await newPage.evaluate(evaluate, method, url),
-    key: async (method, url) => await newPage.evaluate(getKeyEvaluate, method, url),
+    initIdConverter: async () => {
+      await newPage.evaluate(evaluateSetup, indexSvg.join(""), undefined);
+      return async (method, url) => await newPage.evaluate(evaluate, method, url);
+    },
+    initKeyConverter: async () => {
+      await newPage.evaluate(hookEvaluateSetup);
+      return async () => await newPage.evaluate(getKeyEvaluate);
+    },
+    verification: verification,
+    page: input,
   };
 };
 
@@ -115,10 +138,11 @@ const createAdapter = async (cookies, options) => {
   }));
   await browser.setCookie(...cookie);
   const session = await createSession(browser, undefined);
+  const idConvert = await session.initIdConverter();
   return async ({ context, init }) => {
     init.headers = {
       ...init.headers,
-      "x-client-transaction-id": await session.res(context.method, `/i/api${context.path}`),
+      "x-client-transaction-id": await idConvert(context.method, `/i/api${context.path}`),
     };
     return init;
   };

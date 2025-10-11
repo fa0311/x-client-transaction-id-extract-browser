@@ -1,6 +1,6 @@
 {
   "name": "x-client-transaction-id-extract-browser",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "commonjs",
   "main": "src/main.js",
   "types": "dist/main.d.ts",
