@@ -50,6 +50,7 @@ const hookEvaluateSetup = async () => {
  * @property { () => Promise<void>} close
  * @property { () => Promise<(method: string, url: string) => Promise<any>>} initIdConverter
  * @property { () => Promise<() => Promise<string>>} initKeyConverter
+ * @property { () => Promise<(method: string, url: string) => Promise<string>>} initXHRConverter
  * @property {string} verification
  * @property {string} page
  */
@@ -64,6 +65,51 @@ const getKeyEvaluate = async () => {
   const last = globalThis.elonmusk_1145141919810[globalThis.elonmusk_1145141919810.length - 1];
   const toStr = (b) => new TextDecoder().decode(b instanceof ArrayBuffer ? b : b.buffer);
   return toStr(last.data);
+};
+
+const evaluateXHRSetup = async () => {
+  globalThis.elonmusk_8101919 = [];
+  const oOpen = XMLHttpRequest.prototype.open;
+  const oSend = XMLHttpRequest.prototype.send;
+  const oSet = XMLHttpRequest.prototype.setRequestHeader;
+
+  XMLHttpRequest.prototype.open = function (method, url) {
+    const path = new URL(String(url), location.href).pathname;
+    // @ts-ignore
+    this.elonmusk_114514_method = method;
+    // @ts-ignore
+    this.elonmusk_114514_path = path;
+    return oOpen.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+    if (String(name).toLowerCase() === "x-client-transaction-id") {
+      // @ts-ignore
+      this.elonmusk_114514_tid = value;
+    }
+    return oSet.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.send = function () {
+    // @ts-ignore
+    globalThis.elonmusk_8101919.push({
+      // @ts-ignore
+      method: this.elonmusk_114514_method,
+      // @ts-ignore
+      path: this.elonmusk_114514_path,
+      // @ts-ignore
+      tid: this.elonmusk_114514_tid,
+    });
+    return oSend.apply(this, arguments);
+  };
+};
+
+const getXHREvaluate = async (method, url) => {
+  while (globalThis.elonmusk_8101919.length === 0) {
+    await new Promise((res) => setTimeout(res, 100));
+  }
+  const record = globalThis.elonmusk_8101919.find((e) => e.method === method && e.path === url);
+  return record.tid;
 };
 
 /**
@@ -87,6 +133,10 @@ const createSession = async (browser, page) => {
     initKeyConverter: async () => {
       await newPage.evaluate(hookEvaluateSetup);
       return async () => await newPage.evaluate(getKeyEvaluate);
+    },
+    initXHRConverter: async () => {
+      await newPage.evaluate(evaluateXHRSetup);
+      return async (method, url) => await newPage.evaluate(getXHREvaluate, method, url);
     },
     verification: verification,
     page: input,
@@ -118,6 +168,10 @@ const createSessionOverride = async (browser, page, input) => {
     initKeyConverter: async () => {
       await newPage.evaluate(hookEvaluateSetup);
       return async () => await newPage.evaluate(getKeyEvaluate);
+    },
+    initXHRConverter: async () => {
+      await newPage.evaluate(evaluateXHRSetup);
+      return async (method, url) => await newPage.evaluate(getXHREvaluate, method, url);
     },
     verification: verification,
     page: input,
